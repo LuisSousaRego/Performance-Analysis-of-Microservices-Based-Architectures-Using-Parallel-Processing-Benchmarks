@@ -6,9 +6,9 @@ import (
 	"sync"
 )
 
-const neighboursNumber = 1
-const neighbourhoodSize = 100
-const pingLimit = 160
+const neighboursNumber = 50
+const neighbourhoodSize = 1000
+const pingLimit = 16000
 
 type node struct {
 	id   int
@@ -32,6 +32,7 @@ func worker(w node, neighbourhood *[neighbourhoodSize]node, wg *sync.WaitGroup) 
 		case <-w.pong:
 			if pingCounter == pingLimit {
 				wg.Done()
+				return
 			} else {
 				targetId := getRandomNeighbour(w.id, neighbourhood)
 				(*neighbourhood)[targetId].ping <- w.id
@@ -50,7 +51,7 @@ func main() {
 	// initialize all workers
 	for i := 0; i < neighboursNumber; i++ {
 		for j := 0; j < neighbourhoodSize; j++ {
-			w := node{id: j, ping: make(chan int), pong: make(chan string)}
+			w := node{id: j, ping: make(chan int, 1), pong: make(chan string, 1)}
 			neighbourhoods[i][j] = w
 			wg.Add(1)
 			go worker(w, &neighbourhoods[i], &wg)
