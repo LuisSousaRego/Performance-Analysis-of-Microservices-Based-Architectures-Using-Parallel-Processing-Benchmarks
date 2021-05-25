@@ -6,9 +6,9 @@ import (
 	"sync"
 )
 
-const neighboursNumber = 50
-const neighbourhoodSize = 1000
-const pingLimit = 16000
+const neighboursNumber = 10
+const neighbourhoodSize = 10
+const pingLimit = 5000000
 
 type node struct {
 	id   int
