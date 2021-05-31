@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -9,7 +9,7 @@ import (
 
 const neighboursNumber = 10
 const neighbourhoodSize = 10
-const pingLimit = 5000000
+const pingLimit = 50000
 
 type node struct {
 	id   int
@@ -21,7 +21,7 @@ func getRandomNeighbour(myId int, neighbourhood *[neighbourhoodSize]node) int {
 	// generating a random id different from itself
 	targetId := myId
 	for targetId != myId {
-		rand.Seed(time.Now().Unix()
+		rand.Seed(time.Now().Unix())
 		targetId = rand.Intn(len(*neighbourhood))
 	}
 	return targetId
@@ -58,7 +58,6 @@ func main() {
 			neighbourhoods[i][j] = w
 		}
 	}
-	fmt.Println("Neighbourhoods created")
 
 	// initialize workers
 	for i := 0; i < len(neighbourhoods); i++ {
@@ -68,7 +67,13 @@ func main() {
 		}
 	}
 
-	fmt.Println("All workers initialized")
+	log.Println("neighboursNumber:", neighboursNumber)
+	log.Println("neighbourhoodSize:", neighbourhoodSize)
+	log.Println("pingLimit:", pingLimit)
+	println("---")
+	println("Starting workers...")
+
+	start := time.Now()
 
 	// start all workers
 	for i := 0; i < neighboursNumber; i++ {
@@ -77,8 +82,9 @@ func main() {
 		}
 	}
 
-	fmt.Println("All workers started, waiting...")
 	wg.Wait()
-	fmt.Println("All workers finished")
 
+	elapsed := time.Since(start)
+	log.Println("All workers finished")
+	log.Println("Elapsed time:", elapsed)
 }

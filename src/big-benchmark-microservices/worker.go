@@ -14,8 +14,8 @@ import (
 )
 
 const corePort = "8090"
-const pingLimit = 50000
 
+var pingLimit int
 var workerPort string
 var neighbourhood []string
 
@@ -25,6 +25,7 @@ type RegisterMessage struct {
 
 type StartMessage struct {
 	Neighbourhood []string `json:"neighbourhood"`
+	PingLimit     int      `json:"pingLimit"`
 }
 
 func register(port string) {
@@ -68,6 +69,7 @@ func startHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	neighbourhood = s.Neighbourhood
+	pingLimit = s.PingLimit
 
 	// ping neighbourhood until reach limit
 	go func() {

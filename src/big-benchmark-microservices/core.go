@@ -8,16 +8,18 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
-const neighboursNumber = 1
-const neighbourhoodSize = 2
+const neighboursNumber = 10
+const neighbourhoodSize = 10
+const pingLimit = 50000
 
 var workers []string
 var neighbourhoods [neighboursNumber][neighbourhoodSize]string
-var mutex = &sync.Mutex{}
+var rMutex = &sync.Mutex{}
+var fMutex = &sync.Mutex{}
+var startTime time.Time
 
 var finishedWorkers uint64
 
@@ -27,6 +29,7 @@ type RegisterMessage struct {
 
 type StartMessage struct {
 	Neighbourhood [neighbourhoodSize]string `json:"neighbourhood"`
+	PingLimit     int                       `json:"pingLimit"`
 }
 
 func startWorkers() {
@@ -36,11 +39,19 @@ func startWorkers() {
 		copy(neighbourhoods[i][:], workers[i*neighbourhoodSize:(i+1)*neighbourhoodSize])
 	}
 
+	println("neighboursNumber:", neighboursNumber)
+	println("neighbourhoodSize:", neighbourhoodSize)
+	println("pingLimit:", pingLimit)
+	println("---")
+	println("Starting workers...")
+
+	startTime = time.Now()
+
 	// start workers
 	for i := 0; i < neighboursNumber; i++ {
 		for j := 0; j < neighbourhoodSize; j++ {
 			url := "http://localhost:" + neighbourhoods[i][j] + "/start"
-			msg := StartMessage{neighbourhoods[i]}
+			msg := StartMessage{neighbourhoods[i], pingLimit}
 			neighbourhoodString, mErr := json.Marshal(msg)
 			if mErr != nil {
 				panic(mErr)
@@ -64,26 +75,30 @@ func registerHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	workerPort := r.Port
 
-	mutex.Lock()
+	rMutex.Lock()
 	workers = append(workers, workerPort)
 	if len(workers) == neighboursNumber*neighbourhoodSize {
 		go startWorkers()
 	}
-	mutex.Unlock()
+	rMutex.Unlock()
 
 	fmt.Fprintf(w, "ok")
 }
 
 func finishHandler(w http.ResponseWriter, req *http.Request) {
-	atomic.AddUint64(&finishedWorkers, 1)
+	fMutex.Lock()
+	finishedWorkers++
 	fmt.Fprintf(w, "ok")
 	if int(finishedWorkers) == len(workers) {
+		elapsedTime := time.Since(startTime)
+		log.Println("Elapsed time: ", elapsedTime)
 		go func() {
 			log.Println("exiting")
 			time.Sleep(time.Second)
 			os.Exit(0)
 		}()
 	}
+	fMutex.Unlock()
 }
 
 func main() {

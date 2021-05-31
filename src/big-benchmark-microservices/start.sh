@@ -8,7 +8,7 @@ echo "starting core"
 sleep 1
 
 echo "starting workers"
-for i in {1..2}
+for i in {1..100}
 do
     ./bin/worker &> ./logs/worker$i.log &
 done
