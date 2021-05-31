@@ -1,18 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const neighboursNumber = 1
@@ -24,39 +21,22 @@ var mutex = &sync.Mutex{}
 
 var finishedWorkers uint64
 
+type RegisterMessage struct {
+	Port string `json:"port"`
+}
+
 type StartMessage struct {
 	Neighbourhood [neighbourhoodSize]string `json:"neighbourhood"`
 }
 
-func createWorkers() {
-	for i := 0; i < neighboursNumber*neighbourhoodSize; i++ {
-		go func(i int) {
-			//cmdStr := "./worker > workerLog" + strconv.Itoa(i)
-			cmd := exec.Command("./worker")
+func startWorkers() {
 
-			outfile, ferr := os.Create("workerLog" + strconv.Itoa(i) + ".log")
-			if ferr != nil {
-				panic(ferr)
-			}
-			defer outfile.Close()
-
-			writer := bufio.NewWriter(outfile)
-			defer writer.Flush()
-
-			workerOut, _ := cmd.StdoutPipe()
-			err := cmd.Start()
-			if err != nil {
-				panic(err)
-			}
-
-			go io.Copy(writer, workerOut)
-			cmd.Wait()
-
-		}(i)
+	// create neighbourhoods
+	for i := 0; i < neighboursNumber; i++ {
+		copy(neighbourhoods[i][:], workers[i*neighbourhoodSize:(i+1)*neighbourhoodSize])
 	}
-}
 
-func initWorkers() {
+	// start workers
 	for i := 0; i < neighboursNumber; i++ {
 		for j := 0; j < neighbourhoodSize; j++ {
 			url := "http://localhost:" + neighbourhoods[i][j] + "/start"
@@ -66,47 +46,47 @@ func initWorkers() {
 				panic(mErr)
 			}
 			jsonStr := []byte(neighbourhoodString)
-			_, err := http.Post(url, "application/json", bytes.NewBuffer(jsonStr))
+			res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonStr))
 			if err != nil {
 				panic(err)
 			}
-		}
-	}
-}
-
-func createNighbourhoods() {
-	for i := 0; i < neighboursNumber; i++ {
-		for j := 0; j < neighbourhoodSize; j++ {
-			neighbourhoods[i][j] = workers[0]
-			workers = workers[1:]
+			defer res.Body.Close()
 		}
 	}
 }
 
 func registerHandler(w http.ResponseWriter, req *http.Request) {
-	addrSlice := strings.Split(req.RemoteAddr, ":")
-	workerPort := addrSlice[len(addrSlice)-1]
+	var r RegisterMessage
+	err := json.NewDecoder(req.Body).Decode(&r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	workerPort := r.Port
+
 	mutex.Lock()
 	workers = append(workers, workerPort)
-	mutex.Unlock()
-	fmt.Println("registered worker on port: ", workerPort)
 	if len(workers) == neighboursNumber*neighbourhoodSize {
-		createNighbourhoods()
-		initWorkers()
+		go startWorkers()
 	}
+	mutex.Unlock()
+
+	fmt.Fprintf(w, "ok")
 }
 
 func finishHandler(w http.ResponseWriter, req *http.Request) {
 	atomic.AddUint64(&finishedWorkers, 1)
-
+	fmt.Fprintf(w, "ok")
 	if int(finishedWorkers) == len(workers) {
-		os.Exit(0)
+		go func() {
+			log.Println("exiting")
+			time.Sleep(time.Second)
+			os.Exit(0)
+		}()
 	}
 }
 
 func main() {
-
-	createWorkers()
 
 	http.HandleFunc("/register", registerHandler)
 	http.HandleFunc("/finish", finishHandler)

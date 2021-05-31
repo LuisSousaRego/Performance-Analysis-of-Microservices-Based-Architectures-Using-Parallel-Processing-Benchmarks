@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -12,29 +14,40 @@ import (
 )
 
 const corePort = "8090"
+const pingLimit = 50000
 
 var workerPort string
-
-const pingLimit = 5000000
-
 var neighbourhood []string
+
+type RegisterMessage struct {
+	Port string `json:"port"`
+}
 
 type StartMessage struct {
 	Neighbourhood []string `json:"neighbourhood"`
 }
 
 func register(port string) {
-	_, err := http.Get("http://localhost:" + port + "/register")
+	url := "http://localhost:" + port + "/register"
+	msg := RegisterMessage{workerPort}
+	registerMessageStr, mErr := json.Marshal(msg)
+	if mErr != nil {
+		panic(mErr)
+	}
+	jsonStr := []byte(registerMessageStr)
+	res, err := http.Post(url, "application/json", bytes.NewBuffer(jsonStr))
 	if err != nil {
 		panic(err)
 	}
+	defer res.Body.Close()
 }
 
 func finish() {
-	_, err := http.Get("http://localhost:" + corePort + "/finish")
+	res, err := http.Get("http://localhost:" + corePort + "/finish")
 	if err != nil {
 		panic(err)
 	}
+	defer res.Body.Close()
 }
 
 func getRandomNeighbourPort(myPort string) string {
@@ -56,13 +69,6 @@ func startHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	neighbourhood = s.Neighbourhood
 
-	// get own port
-	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(err)
-	}
-	workerPort = strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
-
 	// ping neighbourhood until reach limit
 	go func() {
 		var pingCounter int
@@ -71,18 +77,18 @@ func startHandler(w http.ResponseWriter, req *http.Request) {
 			pingCounter++
 		}
 		finish()
+		log.Println("exiting")
 		os.Exit(0)
 	}()
 }
 
 func ping() {
-
 	n := getRandomNeighbourPort(workerPort)
-
-	_, err := http.Get("http://localhost:" + n + "/ping")
+	res, err := http.Get("http://localhost:" + n + "/ping")
 	if err != nil {
 		panic(err)
 	}
+	defer res.Body.Close()
 }
 
 func pingHandler(w http.ResponseWriter, req *http.Request) {
@@ -91,16 +97,18 @@ func pingHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 
-	fmt.Println("Starting worker...")
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
+	}
 
-	go func() {
-		time.Sleep(5 * time.Second)
-		register(corePort)
-	}()
+	workerPort = strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
+
+	register(corePort)
 
 	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/start", startHandler)
 
-	http.ListenAndServe(":0", nil)
+	http.Serve(l, nil)
 
 }

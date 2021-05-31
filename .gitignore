@@ -1,2 +1,3 @@
 notes/
-*.log
+bin/
+logs/
