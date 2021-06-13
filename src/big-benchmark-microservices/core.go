@@ -13,7 +13,7 @@ import (
 
 const neighboursNumber = 10
 const neighbourhoodSize = 10
-const pingLimit = 50000
+const pingLimit = 250000
 
 var workers []string
 var neighbourhoods [neighboursNumber][neighbourhoodSize]string
@@ -39,11 +39,10 @@ func startWorkers() {
 		copy(neighbourhoods[i][:], workers[i*neighbourhoodSize:(i+1)*neighbourhoodSize])
 	}
 
+	println("---")
 	println("neighboursNumber:", neighboursNumber)
 	println("neighbourhoodSize:", neighbourhoodSize)
 	println("pingLimit:", pingLimit)
-	println("---")
-	println("Starting workers...")
 
 	startTime = time.Now()
 
@@ -91,7 +90,7 @@ func finishHandler(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "ok")
 	if int(finishedWorkers) == len(workers) {
 		elapsedTime := time.Since(startTime)
-		log.Println("Elapsed time: ", elapsedTime)
+		log.Println("Elapsed time: ", elapsedTime.Seconds())
 		go func() {
 			log.Println("exiting")
 			time.Sleep(time.Second)
