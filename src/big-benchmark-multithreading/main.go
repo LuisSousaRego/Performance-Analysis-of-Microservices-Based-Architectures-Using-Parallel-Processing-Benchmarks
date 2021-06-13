@@ -48,6 +48,8 @@ func work(w worker, neighbourhood *[neighbourhoodSize]worker, wg *sync.WaitGroup
 
 func main() {
 
+	start := time.Now()
+
 	var neighbourhoods [neighboursNumber][neighbourhoodSize]worker
 	var wg sync.WaitGroup
 
@@ -70,8 +72,6 @@ func main() {
 	log.Println("neighboursNumber:", neighboursNumber)
 	log.Println("neighbourhoodSize:", neighbourhoodSize)
 	log.Println("pingLimit:", pingLimit)
-
-	start := time.Now()
 
 	// start all workers
 	for i := 0; i < neighboursNumber; i++ {
