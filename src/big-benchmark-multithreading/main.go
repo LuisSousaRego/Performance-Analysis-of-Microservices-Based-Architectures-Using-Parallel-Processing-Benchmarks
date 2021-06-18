@@ -34,7 +34,6 @@ func work(w worker, neighbourhood *[neighbourhoodSize]worker, wg *sync.WaitGroup
 		case <-w.pong:
 			if pingCounter == pingLimit {
 				wg.Done()
-				return
 			} else {
 				targetId := getRandomNeighbour(w.id, neighbourhood)
 				(*neighbourhood)[targetId].ping <- w.id
