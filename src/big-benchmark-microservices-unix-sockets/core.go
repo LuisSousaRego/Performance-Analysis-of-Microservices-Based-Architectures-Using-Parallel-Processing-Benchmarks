@@ -107,7 +107,7 @@ func handleConnection(conn net.Conn) {
 		finishedWorkers++
 		if finishedWorkers == uint64(len(workers)) {
 			elapsedTime := time.Since(startTime)
-			log.Println("Elapsed time: ", elapsedTime)
+			log.Println("Elapsed time: ", elapsedTime.Seconds())
 			os.Exit(0)
 		}
 	}

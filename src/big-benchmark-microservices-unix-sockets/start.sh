@@ -4,10 +4,10 @@ go build -o ./bin/core ./core.go
 go build -o ./bin/worker ./worker.go
 
 
-neighbours=10
-neighbourhoodSize=10
-pingLimit=50000
 coreAddr=/tmp/core.sock
+neighbourhoodSize=10
+neighbours=10
+pingLimit=100000
 
 echo "neighbours number: $neighbours"
 echo "neighbourhood size: $neighbourhoodSize"
