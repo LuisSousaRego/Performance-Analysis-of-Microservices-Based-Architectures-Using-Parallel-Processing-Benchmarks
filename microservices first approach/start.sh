@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 rm ./bin/*
 rm ./logs/*
 go build -o ./bin/core ./core.go
